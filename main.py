@@ -2,15 +2,17 @@ import os
 import streamlit as st
 import pickle
 import tempfile
-from langchain.document_loaders import PyPDFLoader, UnstructuredURLLoader
-from langchain.chains import RetrievalQAWithSourcesChain, load_qa_chain, load_summarize_chain
+from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import UnstructuredURLLoader
+from langchain.chains import RetrievalQA
+from langchain.chains.summarize import load_summarize_chain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain import OpenAI
 
 # OpenAI API Key
-OPENAI_API_KEY = 'Your_OpenAI_API_KEY'
+OPENAI_API_KEY = ''
 URL_STORE = "url_faiss_store.pkl"
 PDF_STORE = "pdf_faiss_store.pkl"
 
@@ -96,13 +98,21 @@ query = st.text_input("Enter your question:")
 if query:
     results = []
     if data_source in ["URL", "Both"] and url_vectorstore:
-        chain = RetrievalQAWithSourcesChain.from_llm(llm, retriever=url_vectorstore.as_retriever())
+        chain = RetrievalQA.from_chain_type(
+            llm=llm, 
+            chain_type="stuff", 
+            retriever=url_vectorstore.as_retriever()
+        )
         url_result = chain({"question": query}, return_only_outputs=True)
         results.append(f"📌 **URL Answer:**\n{url_result['answer']}\n")
     
     if data_source in ["PDF", "Both"] and pdf_vectorstore:
         docs = pdf_vectorstore.similarity_search(query)
-        chain = load_qa_chain(llm, chain_type="stuff")
+        chain = RetrievalQA.from_chain_type(
+            llm=llm, 
+            chain_type="stuff", 
+            retriever=pdf_vectorstore.as_retriever()
+        )
         pdf_result = chain.run(input_documents=docs, question=query)
         results.append(f"📄 **PDF Answer:**\n{pdf_result}\n")
     
@@ -116,6 +126,9 @@ if query:
 with st.expander("📜 Summarize PDF", expanded=True):
     if st.button("Summarize PDF") and pdf_vectorstore:
         with st.spinner("Summarizing PDF... ⏳"):
-            chain = load_summarize_chain(llm, chain_type="map_reduce")
-            summary = chain.run(pdf_docs)
+            summarization_chain = load_summarize_chain(
+                llm=llm, 
+                chain_type="map_reduce"
+            )
+            summary = summarization_chain.run(pdf_docs)
             st.markdown(f"### 📄 PDF Summary:\n{summary}")
