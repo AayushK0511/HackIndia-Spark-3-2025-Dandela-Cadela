@@ -23,3 +23,7 @@ A personal AI assistant built with **Streamlit** and **LangChain** that can proc
 
    ```bash
    git clone https://github.com/AayushK0511/HackIndia-Spark-3-2025-Dandela-Cadela.git
+
+## Run
+streamlit run main.py
+
