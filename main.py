@@ -25,16 +25,21 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-        .big-font { font-size:24px !important; text-align: center; }
-        .sidebar .sidebar-content { background-color: #f8f9fa; }
-        .stButton>button { width: 100%; }
+        .big-font { font-size:30px !important; font-weight: bold; color: #4e73df; text-align: center; }
+        .subheader-font { font-size:20px !important; color: #2d3e50; font-weight: bold; }
+        .sidebar .sidebar-content { background-color: #f0f5ff; }
+        .stButton>button { width: 100%; background-color: #4e73df; color: white; border-radius: 8px; padding: 10px; }
+        .stButton>button:hover { background-color: #365f96; }
+        .stTextInput>label { font-size: 16px; font-weight: bold; color: #333; }
+        .stRadio>label { font-size: 16px; font-weight: bold; color: #333; }
+        .stMarkdown { font-size: 16px; color: #333; }
     </style>
     """,
     unsafe_allow_html=True
 )
 
 st.markdown("<h1 class='big-font'>🤖 Personal AI Assistant</h1>", unsafe_allow_html=True)
-st.sidebar.markdown("<h2 style='text-align: center;'>🔹 Assistant Console</h2>", unsafe_allow_html=True)
+st.sidebar.markdown("<h2 class='subheader-font'>🔹 Assistant Console</h2>", unsafe_allow_html=True)
 
 # Load OpenAI LLM
 llm = OpenAI(temperature=0.7, max_tokens=500, openai_api_key=OPENAI_API_KEY)
@@ -51,9 +56,10 @@ def load_or_create_vectorstore(store_path, docs):
         return vectorstore
 
 # ---- Sidebar: URL Input ----
-st.sidebar.subheader("🌐 Process URLs")
-num_links = st.sidebar.slider("Number of URLs:", 1, 5, 1)
-urls = [st.sidebar.text_input(f"URL {i+1}", key=f"url{i}") for i in range(num_links)]
+with st.sidebar.expander("🌐 Process URLs", expanded=True):
+    num_links = st.slider("Number of URLs:", 1, 5, 1)
+    urls = [st.text_input(f"URL {i+1}", key=f"url{i}") for i in range(num_links)]
+
 url_vectorstore = None
 if any(urls):
     loader = UnstructuredURLLoader(urls=urls)
@@ -64,8 +70,9 @@ if any(urls):
         url_vectorstore = load_or_create_vectorstore(URL_STORE, url_docs)
 
 # ---- Sidebar: PDF Upload ----
-st.sidebar.subheader("📄 Upload a PDF")
-uploaded_file = st.sidebar.file_uploader("Choose a PDF", type=['pdf'])
+with st.sidebar.expander("📄 Upload a PDF", expanded=True):
+    uploaded_file = st.file_uploader("Choose a PDF", type=['pdf'])
+
 pdf_vectorstore = None
 if uploaded_file:
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -74,14 +81,15 @@ if uploaded_file:
 
     pdf_loader = PyPDFLoader(temp_path)
     pdf_docs = pdf_loader.load_and_split()
-    
+
     if pdf_docs:
         pdf_vectorstore = load_or_create_vectorstore(PDF_STORE, pdf_docs)
-    
+
     os.remove(temp_path)
 
 # ---- Query Section ----
-st.subheader("💬 Ask a Question")
+st.subheader("💬 Ask a Question", anchor="query_section")
+
 data_source = st.radio("Select Source:", ["URL", "PDF", "Both"], horizontal=True)
 query = st.text_input("Enter your question:")
 
@@ -104,9 +112,10 @@ if query:
     else:
         st.warning("No data found for the selected source.")
 
-# ---- Summarization ----
-if st.button("📜 Summarize PDF") and pdf_vectorstore:
-    with st.spinner("Summarizing PDF... ⏳"):
-        chain = load_summarize_chain(llm, chain_type="map_reduce")
-        summary = chain.run(pdf_docs)
-        st.markdown(f"### 📄 PDF Summary:\n{summary}")
+# ---- Summarization Section ----
+with st.expander("📜 Summarize PDF", expanded=True):
+    if st.button("Summarize PDF") and pdf_vectorstore:
+        with st.spinner("Summarizing PDF... ⏳"):
+            chain = load_summarize_chain(llm, chain_type="map_reduce")
+            summary = chain.run(pdf_docs)
+            st.markdown(f"### 📄 PDF Summary:\n{summary}")
